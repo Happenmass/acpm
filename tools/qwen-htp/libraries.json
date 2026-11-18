@@ -1,0 +1,26 @@
+{
+  "libraries": {
+    "libQnnHtp.so": {
+      "sha256": "09e930b6af975bae23bcf6965ac2ce60f6b999aff37cb7eabe9b4d7c1bc3f264",
+      "sdkPath": "lib/aarch64-android/libQnnHtp.so"
+    },
+    "libQnnSystem.so": {
+      "sha256": "b30bd9880dc48f6c5349185a7d45b326f8a064b10072e60094354fa23d9a2027",
+      "sdkPath": "lib/aarch64-android/libQnnSystem.so"
+    },
+    "libQnnHtpV81Stub.so": {
+      "sha256": "5b0ea1ef9929bdfcdda0d8dfc6ddffdc913fa2be02cf01a1574d644b2e0e0d38",
+      "sdkPath": "lib/aarch64-android/libQnnHtpV81Stub.so"
+    },
+    "libQnnHtpV81Skel.so": {
+      "sha256": "9b7266e38aea818a1caeba5cbfebd9a8cbdba8f25dd82126d9b44ebf4fec4fa0",
+      "sdkPath": "lib/hexagon-v81/unsigned/libQnnHtpV81Skel.so"
+    }
+  },
+  "notices": {
+    "LICENSE.pdf": "ec1dccfdcba5c6e64126e84199b8362bf4999107bfa567ebe831dbb4c461692b",
+    "NOTICE.txt": "0c5e8aad3506d0ab881cabaf0dae8de64e1784dc1ee6c873caf24a78fbf01924",
+    "QNN_NOTICE.txt": "0c5e8aad3506d0ab881cabaf0dae8de64e1784dc1ee6c873caf24a78fbf01924"
+  },
+  "sdkUrl": "https://softwarecenter.qualcomm.com/api/download/software/sdks/Qualcomm_AI_Runtime_Community/All/2.50.0.260828/v2.50.0.260828.zip"
+}

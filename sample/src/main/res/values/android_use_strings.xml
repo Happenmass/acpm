@@ -1,0 +1,4 @@
+<resources>
+    <string name="android_use_service_name">AI SDK Android Use</string>
+    <string name="android_use_service_description">Lets a user-started AI SDK task read and operate the foreground app selected for that task.</string>
+</resources>

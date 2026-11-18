@@ -1,0 +1,42 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <permission android:name="${applicationId}.permission.SPEECH" android:protectionLevel="signature" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+    <application android:name=".SampleAgentHost" android:allowBackup="false" android:largeHeap="true" android:label="AI SDK" android:icon="@mipmap/ic_launcher" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <uses-native-library android:name="libcdsprpc.so" android:required="false" />
+        <service android:name=".AiSpeechService" android:permission="${applicationId}.permission.SPEECH" android:exported="true">
+            <intent-filter>
+                <action android:name="dev.androidagent.action.SPEECH_SERVICE_V1" />
+            </intent-filter>
+        </service>
+        <service android:name=".AgentTaskService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps a user-started on-device agent task running while its progress and cancel action remain visible." />
+        </service>
+        <service android:name=".androiduse.AndroidUseService"
+            android:label="@string/android_use_service_name"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice"
+                android:resource="@xml/android_use_accessibility" />
+        </service>
+        <activity android:name=".SpeechActivity" android:exported="false" />
+        <activity android:name=".MainActivity" android:exported="false" />
+        <activity android:name=".ConsoleActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

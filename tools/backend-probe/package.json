@@ -1,0 +1,12 @@
+{
+  "name": "@android-agent-sdk/backend-probe",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@agentclientprotocol/codex-acp": "1.1.5",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@openma/pi-acp": "0.1.8",
+    "esbuild": "0.25.12"
+  },
+  "private": true
+}

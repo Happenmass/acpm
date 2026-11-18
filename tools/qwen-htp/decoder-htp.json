@@ -1,0 +1,26 @@
+{
+  "devices": [
+    {
+      "soc_model": 88,
+      "dsp_arch": "v81"
+    }
+  ],
+  "context": {
+    "weight_sharing_enabled": true
+  },
+  "graphs": [
+    {
+      "graph_names": [
+        "gqa64"
+      ],
+      "O": 2
+    },
+    {
+      "graph_names": [
+        "gqa",
+        "gqa512"
+      ],
+      "O": 3
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+Qwen3-ASR-0.6B QNN FP16 conversion
+
+Derived model: Qwen/Qwen3-ASR-0.6B-hf, published by the Qwen team under Apache-2.0.
+Source revision: 7f1569a48a89f3e3f4dc3a5c9d28bddd903bc76c.
+The conversion scripts and native runtime source in source.zip are released under Apache-2.0.
+The original model has been converted into fixed-shape FP16 QNN context binaries.
+Exported model operations use Hugging Face Transformers, licensed under Apache-2.0;
+its installed package retains its upstream copyright and license notices.
+Qualcomm QAIRT/QNN SDK headers, runtime libraries and DSP skeletons are obtained
+separately from Qualcomm and remain subject to their respective license terms.
+
+Android Agent SDK modifications: 24-second W8/FP16 conversion, AR64 O2
+prefill, pre-transposed shared KV, 512/1024-position AR1, and per-target
+compilation and Android packaging. The profiles and measurements for these
+versions are described in the accompanying export guide.

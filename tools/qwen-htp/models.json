@@ -1,0 +1,109 @@
+{
+  "profiles": {
+    "sm8850-o3": {
+      "modelDirectory": "qwen3-asr-sm8850/0.6b-w8fp16-24s-kv1024-adaptive-sm8850-o3",
+      "decoder": [
+        612929536,
+        "d350a1ea1353ca9693959124d2ad11cc98dd047a98b66e3baa650cca85a7b89b"
+      ],
+      "socModels": [
+        "SM8850"
+      ]
+    },
+    "o2": {
+      "modelDirectory": "qwen3-asr-sm8850/0.6b-w8fp16-24s-kv1024-adaptive-v81-o2",
+      "decoder": [
+        613761024,
+        "c6d2789f4f9cc94f2367ede484d9a73de6dfba512b791ee8b6f3d4d177ac90a6"
+      ],
+      "socModels": [
+        "SM8850"
+      ],
+      "htpArch": 81,
+      "modelOverrides": {
+        "audio_window.bin": [
+          180318848,
+          "332fe2acc499520f25c0ea6b5b54d00c5690ba7345d1781b71439385b4b51964"
+        ],
+        "audio_cnn.bin": [
+          15688752,
+          "80fe29d697116781bd15372f4573fe25c4006784611abe5cea08534e74506131"
+        ]
+      }
+    }
+  },
+  "models": {
+    "audio_cnn.bin": [
+      15570008,
+      "4cca46a71fe44e0e94f114d842c759d5a14df40ce74bcbe8255be7a964555fe1"
+    ],
+    "audio_window.bin": [
+      180454056,
+      "1b2469d547c41879409bf53e65ca97e336e987ae93dc610247c40ece09e76a6f"
+    ],
+    "embedding-scales.f32": [
+      607744,
+      "acce138a5f06f1233faa4a8a359903b3c303efc0ce37818ad8cf0f9be11fc9b3"
+    ],
+    "embedding.int8": [
+      155582464,
+      "9ec07c97a15cb9defb675656edeed0370bc3e7b2c478d1eefe6f948fc6516513"
+    ],
+    "mel_filters.f32": [
+      102912,
+      "a3bdc67fe03fb9464ae3dd00533bb422f7530fa6eaf5bdda4faf72c156aad17b"
+    ],
+    "prompt_auto_prefix.i32": [
+      36,
+      "a27eafe692190601b9b9cd4a7ad2abf2456a3bf66b403111034765875d45ddaf"
+    ],
+    "prompt_auto_suffix.i32": [
+      24,
+      "14c603bbf502e3ac9b69ce41b1621cac9329404514d982283431fbd438ce5919"
+    ],
+    "prompt_en_prefix.i32": [
+      36,
+      "a27eafe692190601b9b9cd4a7ad2abf2456a3bf66b403111034765875d45ddaf"
+    ],
+    "prompt_en_suffix.i32": [
+      36,
+      "96f474014069eefa0da7ac56679ca26ca9dd036672545307981ee4b157800376"
+    ],
+    "prompt_ja_prefix.i32": [
+      36,
+      "a27eafe692190601b9b9cd4a7ad2abf2456a3bf66b403111034765875d45ddaf"
+    ],
+    "prompt_ja_suffix.i32": [
+      36,
+      "a3357ddead3c645200acbf329927bc2123c0e949f967db5e81545218d44d9b30"
+    ],
+    "prompt_pt_prefix.i32": [
+      36,
+      "a27eafe692190601b9b9cd4a7ad2abf2456a3bf66b403111034765875d45ddaf"
+    ],
+    "prompt_pt_suffix.i32": [
+      36,
+      "a0d90660a995a3564763ebbde9270287d913684e88e90269eb07a51cbd67aedf"
+    ],
+    "prompt_zh_prefix.i32": [
+      36,
+      "a27eafe692190601b9b9cd4a7ad2abf2456a3bf66b403111034765875d45ddaf"
+    ],
+    "prompt_zh_suffix.i32": [
+      36,
+      "b6ae54867925df7c41107be4a04755e08aa5b60f777dabc5f684cccd65ae319c"
+    ],
+    "token_bytes.bin": [
+      976138,
+      "762cbd971ecf612c255ed5ce616bfc530b1ca53a9ab1e86c9c07b80c85a9a393"
+    ],
+    "token_offsets.i32": [
+      607748,
+      "052a40fc310f4bdb658fc5c9f715af5a03f80482098b8c454a277f5dab0ec9c7"
+    ]
+  },
+  "notices": {
+    "LICENSE": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "NOTICE": "ad04b35e137fb96f7115bd22f9a186a8af61e0c9627bc2a8f2b38053f4bfa754"
+  }
+}

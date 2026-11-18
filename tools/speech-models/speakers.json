@@ -1,0 +1,12 @@
+{
+  "segmentation.onnx": [
+    "sherpa-onnx/sherpa-onnx-pyannote-segmentation-3-0/model.onnx",
+    5992913,
+    "220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079"
+  ],
+  "embedding.onnx": [
+    "sherpa-onnx/3dspeaker_eres2netv2_zh.onnx",
+    71441526,
+    "bf1a75b9930474cf3389ef415e6e5d38ca96fea4a3a00f7e301d080a58ee2239"
+  ]
+}
