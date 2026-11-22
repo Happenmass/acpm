@@ -55,6 +55,8 @@ class SampleProbe : Instrumentation() {
             check(targetContext.packageName.endsWith(".fixture")) { "Build with -PsampleFixture for an isolated sample." }
             when (arguments.getString("stage")) {
                 "speech" -> verifySpeech()
+                "speech-diagnostics" -> SpeechFailureProbe(targetContext).run()
+                "speech-diagnostics-restart" -> verifySpeechDiagnosticRestart()
                 "htp-benchmark" -> benchmarkHtp()
                 "htp-tokens" -> verifyPublicTokens()
                 "recover" -> verifyRecovery()
@@ -198,6 +200,28 @@ class SampleProbe : Instrumentation() {
         } finally {
             runOnMainSync { activity.finish() }
         }
+    }
+
+    private suspend fun verifySpeechDiagnosticRestart(): String {
+        SpeechFailureProbe(targetContext).verifyRestart()
+        val console = startActivitySync(Intent(targetContext, ConsoleActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        try {
+            withTimeout(8_000) {
+                var visible = false
+                while (!visible) {
+                    runOnMainSync {
+                        visible = runCatching {
+                            control<TextView>(console) { it.text.toString().startsWith("QNN context metadata · 0x") }
+                        }.isSuccess
+                    }
+                    if (!visible) delay(50)
+                }
+            }
+        } finally {
+            runOnMainSync { console.finish() }
+        }
+        return "Speech failure history survived an SDK process restart and appeared in the console."
     }
 
     private suspend fun verify(): String {

@@ -51,6 +51,8 @@ class ConsoleActivity : Activity() {
     private var availableAsr: HtpAvailability? = null
     private var availableSpeakers = false
     private var service = SpeechServiceActivity()
+    private val speechFailures by lazy { SpeechFailures(this) }
+    private var recentSpeechFailures = emptyList<SpeechFailure>()
     private var htp = HtpServiceStatus()
     private val memory = ArrayDeque<Long>()
     private val zh get() = resources.configuration.locales[0].language == "zh"
@@ -105,11 +107,14 @@ class ConsoleActivity : Activity() {
             }
             launch {
                 while (true) {
-                    val (asr, speakers, pss) = withContext(Dispatchers.IO) {
-                        Triple(models.asrAvailability(), models.speakerModelsAvailable, Debug.getPss())
+                    val showSpeechFailures = section == Section.OVERVIEW
+                    val (availability, pss, failures) = withContext(Dispatchers.IO) {
+                        Triple(models.asrAvailability() to models.speakerModelsAvailable, Debug.getPss(),
+                            if (showSpeechFailures) speechFailures.recent() else null)
                     }
-                    availableAsr = asr
-                    availableSpeakers = speakers
+                    availableAsr = availability.first
+                    availableSpeakers = availability.second
+                    failures?.let { recentSpeechFailures = it }
                     availableBackends = agent.installedBackends().map { it.backend.name }.toSet()
                     agentStatus = agent.activity()
                     service = AiSpeechService.activity.value
@@ -196,6 +201,28 @@ class ConsoleActivity : Activity() {
             if (service.callers.isEmpty()) addView(label(t("Waiting for the first client request", "等待客户端发来首个请求"), 13, MUTED))
             service.callers.entries.sortedByDescending { it.value }.forEach { (caller, count) -> line(caller, count.toString()) }
         }, spaced(12))
+        if (recentSpeechFailures.isNotEmpty()) {
+            body.addView(label(t("Recent inference failures", "最近推理失败"), 16, PRIMARY, bold = true), spaced(16))
+            recentSpeechFailures.forEach { failure ->
+                body.addView(card {
+                    val operation = when (failure.operation) {
+                        "ASR" -> "ASR"
+                        "SPEAKERS" -> t("Speaker analysis", "说话人分析")
+                        else -> t("Service status", "服务状态")
+                    }
+                    heading("$operation · ${failure.caller}")
+                    val time = DateFormat.format("yyyy-MM-dd HH:mm:ss", failure.atMs)
+                    val pid = failure.servicePid.takeIf { it > 0 }?.let { " · PID $it" }.orEmpty()
+                    addView(label("$time · ${failure.elapsedMs} ms$pid", 13, MUTED))
+                    addView(label("${failure.stage} / ${failure.reason}", 13, ACCENT))
+                    val detail = listOfNotNull(failure.detail, failure.nativeCode).joinToString(" · ")
+                    addView(label(detail, 13, PRIMARY).apply { setTextIsSelectable(true) })
+                    failure.requestId?.let { id ->
+                        addView(label("${t("Request", "请求")} $id", 12, MUTED).apply { setTextIsSelectable(true) })
+                    }
+                }, spaced(8))
+            }
+        }
     }
 
     private fun agents() {

@@ -15,11 +15,16 @@
 #include <unordered_map>
 
 namespace qwen {
+struct QnnError : std::runtime_error {
+    const char* operation;
+    Qnn_ErrorHandle_t status;
+
+    QnnError(const char* operation, Qnn_ErrorHandle_t status)
+        : std::runtime_error(operation), operation(operation), status(status) {}
+};
+
 inline void checked(Qnn_ErrorHandle_t status,const char* operation) {
-    if (status!=QNN_SUCCESS) {
-        std::ostringstream text; text<<operation<<" failed: 0x"<<std::hex<<status;
-        throw std::runtime_error(text.str());
-    }
+    if (status!=QNN_SUCCESS) throw QnnError(operation, status);
 }
 
 struct SharedBuffer {

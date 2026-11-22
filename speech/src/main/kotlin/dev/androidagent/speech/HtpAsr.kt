@@ -6,6 +6,7 @@ import android.os.PowerManager
 import android.system.Os
 import android.system.OsConstants
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +38,13 @@ data class HtpServiceStatus(
 )
 
 class HtpUnavailableException(val reason: HtpAvailability) : IllegalStateException("Qualcomm HTP unavailable ($reason).")
+
+class HtpInferenceException internal constructor(
+    val stage: String,
+    val detail: String,
+    val nativeCode: String? = null,
+    cause: Throwable? = null,
+) : IllegalStateException("Qualcomm HTP: $stage / $detail", cause)
 
 data class HtpWindowTiming(
     val melMs: Double,
@@ -107,7 +115,13 @@ class HtpAsr @JvmOverloads constructor(
         onProgress: (Float) -> Unit = {},
     ): HtpTranscript = withContext(Dispatchers.IO) {
         requireAvailable()
-        val wav = audio.openSpeechAudio()
+        val wav = try {
+            audio.openSpeechAudio()
+        } catch (failure: IllegalArgumentException) {
+            throw HtpInferenceException("WAV_VALIDATION", "INVALID_WAV", cause = failure)
+        } catch (failure: IOException) {
+            throw HtpInferenceException("WAV_VALIDATION", "WAV_READ_FAILED", cause = failure)
+        }
         val selected = ranges ?: listOf(SpeechRange(0, wav.sampleCount))
         selected.forEach(wav::checkRange)
         val totalSamples = selected.sumOf { it.endSample - it.startSample }
@@ -120,7 +134,11 @@ class HtpAsr @JvmOverloads constructor(
                 while (start < range.endSample) {
                     currentCoroutineContext().ensureActive()
                     val end = minOf(start + WINDOW_SAMPLES, range.endSample)
-                    val samples = wav.readMono(start, (end - start).toInt())
+                    val samples = try {
+                        wav.readMono(start, (end - start).toInt())
+                    } catch (failure: IOException) {
+                        throw HtpInferenceException("WAV_VALIDATION", "PCM_READ_FAILED", cause = failure)
+                    }
                     decoder.decode(samples)?.let { recognized ->
                         segments += HtpTranscriptSegment(SpeechRange(start, end), recognized.text, recognized.timing)
                     }
@@ -142,8 +160,12 @@ class HtpAsr @JvmOverloads constructor(
     private fun createDecoder(): Decoder {
         val configuration = WorkerConfiguration(worker, runtimeDirectory.canonicalFile, modelDirectory.canonicalFile,
             modelIdleTimeoutMs)
-        return Decoder(File.createTempFile("speech-asr-", ".wav", app.cacheDir), configuration,
-            app.getSystemService(PowerManager::class.java))
+        val input = try {
+            File.createTempFile("speech-asr-", ".wav", app.cacheDir)
+        } catch (failure: IOException) {
+            throw HtpInferenceException("AUDIO_STAGING", "WORKER_TEMP_FILE_FAILED", cause = failure)
+        }
+        return Decoder(input, configuration, app.getSystemService(PowerManager::class.java))
     }
 
     data class WindowText(val text: String, val timing: HtpWindowTiming, val modelLoadMs: Double = 0.0)
@@ -164,7 +186,11 @@ class HtpAsr @JvmOverloads constructor(
             currentCoroutineContext().ensureActive()
             if (samples.all { it == 0f }) return@withContext null
             try {
-                PcmWav.writeMono(input, samples, SAMPLE_RATE)
+                try {
+                    PcmWav.writeMono(input, samples, SAMPLE_RATE)
+                } catch (failure: IOException) {
+                    throw HtpInferenceException("AUDIO_STAGING", "WORKER_WAV_WRITE_FAILED", cause = failure)
+                }
                 InferenceServer.transcribe(configuration, input, power).also { window ->
                     modelLoadMs = (modelLoadMs ?: 0.0) + window.modelLoadMs
                 }
@@ -222,17 +248,29 @@ class HtpAsr @JvmOverloads constructor(
                 }
                 val burst = thermal == PowerManager.THERMAL_STATUS_NONE || thermal == PowerManager.THERMAL_STATUS_LIGHT
                 val mode = if (burst) "burst\t" else ""
-                live.send("$sequence\t$mode${input.absolutePath}")
+                try {
+                    live.send("$sequence\t$mode${input.absolutePath}")
+                } catch (failure: IOException) {
+                    throw HtpInferenceException("HTP_WORKER_IO", "WORKER_SEND_FAILED", cause = failure)
+                }
                 val fields = live.frame().split('\t', limit = 12)
-                check(fields.size == 12 && fields[0].toLongOrNull() == sequence) { "Invalid HTP response." }
-                val timing = HtpWindowTiming(
-                    melMs = fields[1].toDouble(), encoderMs = fields[2].toDouble(), prefillMs = fields[3].toDouble(),
-                    decodeMs = fields[4].toDouble(), tokens = fields[5].toInt(), decodeGraphMs = fields[7].toDouble(),
-                    decodeKvMs = fields[8].toDouble(), decodeCalls = fields[9].toInt(), workerPeakRssKiB = fields[10].toLong(),
-                )
+                if (fields.size != 12 || fields[0].toLongOrNull() != sequence) {
+                    throw HtpInferenceException("HTP_WORKER_IO", "INVALID_WORKER_REPLY")
+                }
+                val result = try {
+                    val timing = HtpWindowTiming(
+                        melMs = fields[1].toDouble(), encoderMs = fields[2].toDouble(), prefillMs = fields[3].toDouble(),
+                        decodeMs = fields[4].toDouble(), tokens = fields[5].toInt(), decodeGraphMs = fields[7].toDouble(),
+                        decodeKvMs = fields[8].toDouble(), decodeCalls = fields[9].toInt(), workerPeakRssKiB = fields[10].toLong(),
+                    )
+                    WindowText(fields[11], timing, fields[6].toDouble())
+                } catch (failure: NumberFormatException) {
+                    throw HtpInferenceException("HTP_WORKER_IO", "INVALID_WORKER_METRICS", cause = failure)
+                }
+                val timing = result.timing
                 usage.update { previous -> previous.copy(completedWindows = previous.completedWindows + 1,
                     peakRssKiB = maxOf(previous.peakRssKiB ?: 0, timing.workerPeakRssKiB), lastDecodeMs = timing.decodeMs) }
-                WindowText(fields[11], timing, fields[6].toDouble())
+                result
             } catch (failure: Exception) {
                 // After an interrupted exchange, the next client needs a fresh pipe.
                 stop()
@@ -246,15 +284,17 @@ class HtpAsr @JvmOverloads constructor(
             configuration = null
         }
 
-        private fun start(config: WorkerConfiguration): WorkerPipe {
+        private fun start(config: WorkerConfiguration): WorkerPipe = try {
             val runtime = config.runtime.path
-            return WorkerPipe(ProcessBuilder(config.executable.path, runtime, config.model.path, config.idleMs.toString()).apply {
+            WorkerPipe(ProcessBuilder(config.executable.path, runtime, config.model.path, config.idleMs.toString()).apply {
                 environment()["LD_LIBRARY_PATH"] = "$runtime:/system/lib64:/system_ext/lib64:/vendor/lib64"
                 environment()["ADSP_LIBRARY_PATH"] = runtime
                 environment()["QWEN_HTP_SHARED_IO"] = "1"
                 environment()["QWEN_HTP_PERFORMANCE"] = "1"
                 redirectErrorStream(true)
             }.start())
+        } catch (failure: IOException) {
+            throw HtpInferenceException("HTP_WORKER_START", "WORKER_START_FAILED", cause = failure)
         }
     }
 
@@ -298,13 +338,18 @@ class HtpAsr @JvmOverloads constructor(
 
         suspend fun frame(): String = try {
             withTimeout(90_000) {
-                val value = frames.receiveCatching().getOrNull()
-                check(value != null && value != "error") { "The Qualcomm HTP worker failed." }
+                val frame = frames.receiveCatching()
+                val value = frame.getOrNull() ?: throw HtpInferenceException(
+                    "HTP_WORKER_IO", if (frame.exceptionOrNull() == null) "WORKER_EOF" else "WORKER_PIPE_READ_FAILED",
+                    runCatching { "exit ${child.exitValue()}" }.getOrNull(), frame.exceptionOrNull(),
+                )
+                if (value == "error") throw HtpInferenceException("HTP_WORKER_IO", "UNSPECIFIED_WORKER_ERROR")
+                if (value.startsWith("error\t")) throw workerFailure(value)
                 value
             }
         } catch (timeout: TimeoutCancellationException) {
             currentCoroutineContext().ensureActive()
-            throw IllegalStateException("The Qualcomm HTP worker timed out.", timeout)
+            throw HtpInferenceException("HTP_WORKER_IO", "WORKER_TIMEOUT", cause = timeout)
         }
 
         override fun close() {
@@ -343,5 +388,17 @@ class HtpAsr @JvmOverloads constructor(
 
         private const val WINDOW_SAMPLES = 24L * SAMPLE_RATE
         private const val PREFIX = "SOUND_QWEN_HTP\t"
+        private val workerStage = Regex("HTP_[A-Z_]{1,24}")
+        private val workerDetail = Regex("[A-Za-z0-9_ ]{1,64}")
+        private val workerCode = Regex("0x[0-9a-f]{1,16}")
+
+        private fun workerFailure(frame: String): HtpInferenceException {
+            val fields = frame.split('\t', limit = 4)
+            if (fields.size !in 3..4 || !workerStage.matches(fields[1]) || !workerDetail.matches(fields[2]) ||
+                (fields.size == 4 && !workerCode.matches(fields[3]))) {
+                return HtpInferenceException("HTP_WORKER_IO", "INVALID_WORKER_ERROR")
+            }
+            return HtpInferenceException(fields[1], fields[2], fields.getOrNull(3))
+        }
     }
 }

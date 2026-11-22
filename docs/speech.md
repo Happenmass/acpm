@@ -42,6 +42,10 @@ val speakers = speech.diarize(recordingWav)
 
 The versioned Binder interface passes read-only file descriptors for 16 kHz mono PCM16 WAV. Windows are up to 24 seconds. Diarization accepts recordings up to 80 minutes and returns recording-local labels. The service stages each descriptor into a private temporary file and removes it after the request. It supports cancellation and cancels work when a caller dies. Prompts, transcription text and raw audio do not appear in the console.
 
+The console shows the last 20 speech failures across SDK process restarts. Each entry includes the calling package, operation, request ID, time, elapsed milliseconds, service process ID, failure stage and detail. When available, the SDK also reports a system error number, worker exit status or Qualcomm QNN error code. The app stores diagnostic metadata in private preferences and emits the same fields under the `AiSpeechService` Logcat tag. In Yanmo Android 1.15.94-yanmo.17, compare the request ID in **Settings → Recent dictation failures** with **Overview → Recent inference failures** in the SDK.
+
+Binder keeps the existing `error` values and returns the caller's original request ID. New clients can read `requestId`, `stage`, `detail`, `nativeCode` and `elapsedMs` from `SpeechServiceException`. Stage, detail, native code and timing are optional for older service builds. Failure metadata can identify descriptor validation, audio reads and staging, WAV validation, model preparation or the HTP worker phase.
+
 Provision only the synthetic audio fixture for the UI probe on a build with bundled weights. A diagnostics-only build can still use manually staged speaker weights under `files/speech`.
 
 | Path relative to `files/speech` | File |
@@ -56,6 +60,8 @@ adb -s "$ANDROID_SERIAL" shell am instrument -w -e stage speech \
 ```
 
 The emulator probe checks the actual VAD, embedding and clustering results and expects the HTP device diagnostic. On a compatible phone with the same fixtures and model setup, add `-e requireHtp true` to require HTP graph execution and a nonempty transcription. Use `-e stage htp-benchmark` with the 8.802-second bilingual fixture to run three cold/warm pairs, compare transcripts and exercise unloading with a five-second idle interval.
+
+On a compatible phone, use `-e stage speech-diagnostics` with a synthetic `fixture.wav` that says “This is a local speech recognition test on the phone.” The isolated app exercises invalid descriptors, FUSE read errors, malformed WAV, QNN model-load errors and recovery through real HTP. Run `-e stage speech-diagnostics-restart` in a fresh fixture process to check that the console reads back the failure history.
 
 The Agent example provides its own atomic session snapshot storage and a per-turn Streamable HTTP MCP server from the host `Application`. The SDK handles session recovery, Agent launch and turn events.
 

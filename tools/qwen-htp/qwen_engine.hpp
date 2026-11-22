@@ -252,15 +252,20 @@ public:
         token_bytes_=read_values<char>(directory+"/token_bytes.bin");
         if(token_offsets_.size()!=151937 || token_offsets_.back()!=static_cast<int32_t>(token_bytes_.size()))throw std::runtime_error("Qwen vocabulary size mismatch");
     }
-    Transcription transcribe(const float* pcm,size_t samples,const std::string& language,int max_tokens=1024, bool burst=false) {
+    Transcription transcribe(const float* pcm, size_t samples, const std::string& language,
+                              const char*& stage, int max_tokens, bool burst) {
+        stage = "HTP_PERFORMANCE";
         QnnRuntime::PerformanceVote performance(runtime_, burst);
         decoder_graph_ms_=0;
         prefill_kv_ms_=decode_kv_ms_=0;
         prefill_calls_=decode_calls_=0;
         Transcription result;result.language=language;
         auto start=Clock::now();size_t frames=0;
+        stage = "HTP_MEL";
         auto mel=mel_.compute(pcm,samples,frames);result.mel_ms=milliseconds(start);
+        stage = "HTP_ENCODER";
         start=Clock::now();auto audio_embeddings=audio(mel,frames);result.encoder_ms=milliseconds(start);
+        stage = "HTP_PREFILL";
         auto prefix=read_values<int32_t>(directory_+"/prompt_"+language+"_prefix.i32");
         auto suffix=read_values<int32_t>(directory_+"/prompt_"+language+"_suffix.i32");
         const int audio_tokens=audio_embeddings.size()/width;
@@ -279,6 +284,7 @@ public:
         }
         result.prefill_ms=milliseconds(start);
         result.prefill_graph_ms=decoder_graph_ms_;
+        stage = "HTP_DECODE";
         start=Clock::now();
         const int limit=std::min(max_tokens,capacity-position);
         bool ended=false;

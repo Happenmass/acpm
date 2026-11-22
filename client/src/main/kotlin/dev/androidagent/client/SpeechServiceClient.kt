@@ -37,7 +37,16 @@ data class RemoteSpeechWindow(val text: String, val modelLoadMs: Double?, val de
 data class RemoteSpeakerTurn(val startMs: Long, val endMs: Long, val speaker: Int)
 data class RemoteSpeakers(val turns: List<RemoteSpeakerTurn>, val warning: String?)
 
-class SpeechServiceException(val reason: String) : IllegalStateException("AI SDK speech service: $reason")
+class SpeechServiceException internal constructor(
+    val reason: String,
+    val requestId: String?,
+    val stage: String?,
+    val detail: String?,
+    val nativeCode: String?,
+    val elapsedMs: Long?,
+) : IllegalStateException("AI SDK speech service: $reason") {
+    constructor(reason: String) : this(reason, null, null, null, null, null)
+}
 
 /** Application-owned Binder client for speech inference and optional MCP diagnostics. */
 class SpeechServiceClient(context: Context, val servicePackage: String) {
@@ -179,7 +188,11 @@ class SpeechServiceClient(context: Context, val servicePackage: String) {
             target.send(message(op, data))
             val reply = withTimeoutOrNull(timeoutMs) { result.await() } ?: throw SpeechServiceException("TIMEOUT")
             received = true
-            reply.getString(SpeechWire.ERROR)?.let { throw SpeechServiceException(it) }
+            reply.getString(SpeechWire.ERROR)?.let { reason ->
+                throw SpeechServiceException(reason, id, reply.getString(SpeechWire.FAILURE_STAGE),
+                    reply.getString(SpeechWire.FAILURE_DETAIL), reply.getString(SpeechWire.NATIVE_ERROR_CODE),
+                    reply.getLong(SpeechWire.FAILURE_ELAPSED_MS).takeIf { reply.containsKey(SpeechWire.FAILURE_ELAPSED_MS) })
+            }
             return reply
         } catch (_: RemoteException) {
             throw SpeechServiceException("DISCONNECTED")
